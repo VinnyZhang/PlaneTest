@@ -24,8 +24,8 @@ class PlaneNode: SCNNode {
         
 //        创建材质并用于平面
         let material = SCNMaterial()
-        let image = UIImage(named: "plane.png")
-        material.diffuse.contents = image
+//        let image = UIImage(named: "plane.png")
+        material.diffuse.contents = UIColor.clear
         planeGeometry.materials = [material]
         
 //        创建节点并作为当前节点的子节点

@@ -25,6 +25,8 @@ class ViewController: UIViewController,ARSCNViewDelegate {
     var tipLabel = UILabel()//提示标签
     var infoLabel = UILabel() //信息展示标签
     
+    var boxNode: SCNNode!
+    
     
     //MARK: - 生命周期
     override func viewDidLoad() {
@@ -53,6 +55,20 @@ class ViewController: UIViewController,ARSCNViewDelegate {
             tipLabel.text = "当前设备不支持6DOF跟踪"
         }
         scnView.session.run(sessionConfig!)
+        
+        
+        //      添加3D立方体
+        let boxGeometry = SCNBox(width: 0.1, height: 0.1, length: 0.1, chamferRadius: 0.0)
+        let material = SCNMaterial()
+        let img = UIImage(named: "gc.png")
+        material.diffuse.contents = img
+        //        boxGeometry.materials
+        material.lightingModel = .physicallyBased
+        boxGeometry.materials = [material]
+        
+        
+        boxNode = SCNNode(geometry: boxGeometry)
+        
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -157,23 +173,67 @@ class ViewController: UIViewController,ARSCNViewDelegate {
         tipLabel.text  = error.localizedDescription
     }
     
+    /**
+     实现此方法来为给定 anchor 提供自定义 node。
+     
+     @discussion 此 node 会被自动添加到 scene graph 中。
+     如果没有实现此方法，则会自动创建 node。
+     如果返回 nil，则会忽略此 anchor。
+     @param renderer 将会用于渲染 scene 的 renderer。
+     @param anchor 新添加的 anchor。
+     @return 将会映射到 anchor 的 node 或 nil。
+     */
     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
         guard let anchor = anchor as? ARPlaneAnchor else {
             return nil
         }
-        
+
         let node = PlaneNode(withAnchor: anchor)
-        
-        
+
+
         DispatchQueue.main.async(execute: {
             self.tipLabel.text = "检测到平面并已添加到场景中，点击屏幕可刷新会话"
         })
-        
         
         return node
         
     }
     
+    /**
+     将新 node 映射到给定 anchor 时调用。
+     
+     @param renderer 将会用于渲染 scene 的 renderer。
+     @param node 映射到 anchor 的 node。
+     @param anchor 新添加的 anchor。
+     */
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        
+        guard let anchor = anchor as? ARPlaneAnchor else {
+            return
+        }
+        guard let node = node as? PlaneNode else {
+            return
+        }
+        node.update(anchor: anchor)
+        DispatchQueue.main.async(execute: {
+
+            if self.boxNode.parent == nil {
+                self.boxNode.position = SCNVector3Make(anchor.center.x, 0, anchor.center.z)
+                node.addChildNode(self.boxNode)
+            }
+            
+            
+        })
+        
+    }
+    
+    /**
+     将要用给定 anchor 的数据来更新时 node 调用。
+     
+     @param renderer 将会用于渲染 scene 的 renderer。
+     @param node 即将更新的 node。
+     @param anchor 被更新的 anchor。
+     */
     func renderer(_ renderer: SCNSceneRenderer, willUpdate node: SCNNode, for anchor: ARAnchor) {
         guard let anchor = anchor as? ARPlaneAnchor else {
             return
@@ -184,9 +244,29 @@ class ViewController: UIViewController,ARSCNViewDelegate {
         node.update(anchor: anchor)
         DispatchQueue.main.async(execute: {
             self.tipLabel.text = "场景内有平面更新"
+            self.tipLabel.text = "\(anchor.center.x) , \(anchor.center.y) ,\(anchor.center.z)"
         })
         
     }
+    
+    /**
+     使用给定 anchor 的数据更新 node 时调用。
+     
+     @param renderer 将会用于渲染 scene 的 renderer。
+     @param node 更新后的 node。
+     @param anchor 更新后的 anchor。
+     */
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        
+    }
+    
+    /**
+     从 scene graph 中移除与给定 anchor 映射的 node 时调用。
+     
+     @param renderer 将会用于渲染 scene 的 renderer。
+     @param node 被移除的 node。
+     @param anchor 被移除的 anchor。
+     */
     
     func renderer(_ renderer: SCNSceneRenderer, didRemove node: SCNNode, for anchor: ARAnchor) {
         guard let anchor = anchor as? ARPlaneAnchor else {
@@ -195,7 +275,7 @@ class ViewController: UIViewController,ARSCNViewDelegate {
         guard let node = node as? PlaneNode else {
             return
         }
-        node .removePlaneNode(WithAnchor: anchor)
+        node.removePlaneNode(WithAnchor: anchor)
         
         DispatchQueue.main.async(execute: {
             self.tipLabel.text = "场景内有平面被删除"
